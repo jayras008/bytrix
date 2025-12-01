@@ -11,11 +11,24 @@ export async function DELETE(request: NextRequest) {
   }
 
   try {
-    const body = await request.json();
-    const { filename } = body;
+    // Support both body and query parameter
+    let filename: string | null = null;
+    
+    // Try to get from query parameter first (GPT Actions sometimes sends it here)
+    filename = request.nextUrl.searchParams.get('filename');
+    
+    // If not in query, try body
+    if (!filename) {
+      try {
+        const body = await request.json();
+        filename = body.filename;
+      } catch (e) {
+        // Body parsing failed, filename already null
+      }
+    }
 
     if (!filename) {
-      return NextResponse.json({ error: 'filename required' }, { status: 400 });
+      return NextResponse.json({ error: 'filename required in body or query' }, { status: 400 });
     }
 
     const client = new Client()
