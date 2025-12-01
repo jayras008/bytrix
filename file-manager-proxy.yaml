@@ -135,8 +135,15 @@ paths:
       operationId: deleteFile
       summary: Hapus file
       description: Menghapus file dari storage secara permanen
+      parameters:
+        - in: query
+          name: filename
+          required: false
+          schema:
+            type: string
+          description: Nama file yang akan dihapus (alternatif jika tidak dikirim di body)
       requestBody:
-        required: true
+        required: false
         content:
           application/json:
             schema:
