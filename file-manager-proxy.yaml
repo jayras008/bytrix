@@ -1,0 +1,258 @@
+openapi: 3.1.0
+info:
+  title: File Manager Pribadi Universal
+  description: |
+    API proxy untuk mengelola file pribadi dengan Supabase Storage.
+    
+    **KEAMANAN**: Anon key Supabase tersimpan aman di server, tidak pernah terekspos ke OpenAI.
+    
+    **CARA PAKAI**:
+    1. Deploy salah satu varian (Vercel/Railway/Docker/dll)
+    2. Ganti [YOUR_DEPLOY_URL] dengan URL deployment Anda
+    3. Set API Key custom Anda di header x-api-key
+  version: 1.0.0
+  contact:
+    name: File Manager Support
+servers:
+  - url: https://[YOUR_DEPLOY_URL]
+    description: Production server (ganti dengan URL deployment Anda)
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+  /api/list:
+    get:
+      operationId: listFiles
+      summary: Lihat semua file pribadi
+      description: Menampilkan daftar semua file yang tersimpan dengan informasi lengkap (nama, ukuran, tanggal upload, dll)
+      responses:
+        '200':
+          description: Daftar file berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  files:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                          example: "dokumen-penting.pdf"
+                        size:
+                          type: integer
+                          example: 2048576
+                        type:
+                          type: string
+                          example: "application/pdf"
+                        created_at:
+                          type: string
+                          format: date-time
+                        updated_at:
+                          type: string
+                          format: date-time
+                  total:
+                    type: integer
+                    example: 15
+        '401':
+          description: API key tidak valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/upload:
+    post:
+      operationId: uploadFile
+      summary: Upload file baru atau replace file existing
+      description: |
+        Upload file baru ke storage. Jika parameter `replace` = true dan file dengan nama yang sama sudah ada, file lama akan diganti (overwrite).
+        
+        **CATATAN**: File data harus di-encode base64 sebelum dikirim.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - filename
+                - file_data
+              properties:
+                filename:
+                  type: string
+                  description: Nama file (bisa dengan spasi, emoji, karakter Unicode)
+                  example: "Laporan 2024 📊.xlsx"
+                file_data:
+                  type: string
+                  format: byte
+                  description: Data file yang sudah di-encode base64
+                  example: "JVBERi0xLjQKJeLjz9MKM..."
+                content_type:
+                  type: string
+                  description: MIME type file (opsional)
+                  example: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                replace:
+                  type: boolean
+                  description: Set true untuk overwrite file existing dengan nama yang sama
+                  default: false
+                  example: true
+      responses:
+        '200':
+          description: File berhasil diupload/diganti
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  filename:
+                    type: string
+                    example: "Laporan 2024 📊.xlsx"
+                  message:
+                    type: string
+                    example: "File uploaded successfully"
+        '400':
+          description: Parameter tidak lengkap
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: API key tidak valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/delete:
+    delete:
+      operationId: deleteFile
+      summary: Hapus file
+      description: Menghapus file dari storage secara permanen
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - filename
+              properties:
+                filename:
+                  type: string
+                  description: Nama file yang akan dihapus
+                  example: "file-lama.pdf"
+      responses:
+        '200':
+          description: File berhasil dihapus
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "File file-lama.pdf deleted successfully"
+        '400':
+          description: Parameter tidak lengkap
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: API key tidak valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/signed-url:
+    post:
+      operationId: getSignedUrl
+      summary: Dapatkan link download sementara
+      description: |
+        Generate signed URL untuk download file. Link ini valid selama waktu yang ditentukan (default 7 hari).
+        
+        **KEAMANAN**: Link ini bersifat sementara dan akan otomatis expired setelah waktu yang ditentukan.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - filename
+              properties:
+                filename:
+                  type: string
+                  description: Nama file yang ingin di-download
+                  example: "dokumen-penting.pdf"
+                expires_in:
+                  type: integer
+                  description: Durasi validitas link dalam detik (default 604800 = 7 hari)
+                  default: 604800
+                  example: 604800
+      responses:
+        '200':
+          description: Signed URL berhasil dibuat
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  signed_url:
+                    type: string
+                    format: uri
+                    description: URL download sementara
+                    example: "https://xxxxx.supabase.co/storage/v1/object/sign/private-files/dokumen-penting.pdf?token=..."
+                  expires_in:
+                    type: integer
+                    example: 604800
+                  expires_at:
+                    type: string
+                    format: date-time
+                    description: Waktu expired link
+                    example: "2024-12-08T10:30:00.000Z"
+        '400':
+          description: Parameter tidak lengkap
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: API key tidak valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: |
+        API Key custom Anda (set di environment variable API_KEY saat deploy).
+        
+        **PENTING**: Ini BUKAN anon key Supabase. Ini adalah key yang Anda tentukan sendiri untuk mengamankan proxy server.
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Unauthorized"

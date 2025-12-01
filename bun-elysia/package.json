@@ -1,0 +1,17 @@
+{
+  "name": "file-manager-bun",
+  "version": "1.0.0",
+  "module": "server.ts",
+  "type": "module",
+  "scripts": {
+    "start": "bun run server.ts",
+    "dev": "bun --watch server.ts"
+  },
+  "dependencies": {
+    "elysia": "^0.8.0",
+    "@supabase/supabase-js": "^2.39.0"
+  },
+  "devDependencies": {
+    "bun-types": "latest"
+  }
+}
