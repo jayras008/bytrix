@@ -1,6 +1,9 @@
 import { Client, Storage, ID, InputFile } from 'node-appwrite';
 import { NextRequest, NextResponse } from 'next/server';
 
+export const maxDuration = 60; // 60 seconds timeout
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   // Verify API Key
   const apiKey = request.headers.get('x-api-key');
@@ -57,11 +60,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
-
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '100mb',
-    },
-  },
-};

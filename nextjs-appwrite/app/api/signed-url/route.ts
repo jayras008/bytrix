@@ -1,6 +1,8 @@
 import { Client, Storage } from 'node-appwrite';
 import { NextRequest, NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   // Verify API Key
   const apiKey = request.headers.get('x-api-key');
