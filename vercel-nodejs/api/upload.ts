@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { Client, Storage, ID, InputFile } from 'node-appwrite';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 // Support file upload up to 100MB
@@ -35,28 +35,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'filename and file_data required' });
     }
 
-    const supabase = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_ANON_KEY!
-    );
+    const client = new Client()
+      .setEndpoint(process.env.APPWRITE_ENDPOINT!)
+      .setProject(process.env.APPWRITE_PROJECT_ID!)
+      .setKey(process.env.APPWRITE_API_KEY!);
+
+    const storage = new Storage(client);
 
     // Convert base64 to buffer
     const buffer = Buffer.from(file_data, 'base64');
 
-    const uploadOptions: any = {
-      contentType: content_type || 'application/octet-stream',
-      upsert: replace === true || replace === 'true'
-    };
+    // If replace, delete existing file first
+    if (replace) {
+      try {
+        const files = await storage.listFiles(process.env.APPWRITE_BUCKET_ID!, [
+          `equal("name", "${filename}")`
+        ]);
+        if (files.files.length > 0) {
+          await storage.deleteFile(process.env.APPWRITE_BUCKET_ID!, files.files[0].$id);
+        }
+      } catch (err) {
+        // File doesn't exist, ignore error
+      }
+    }
 
-    const { data, error } = await supabase.storage
-      .from(process.env.STORAGE_BUCKET!)
-      .upload(filename, buffer, uploadOptions);
-
-    if (error) throw error;
+    const file = await storage.createFile(
+      process.env.APPWRITE_BUCKET_ID!,
+      ID.unique(),
+      InputFile.fromBuffer(buffer, filename)
+    );
 
     return res.status(200).json({
       success: true,
-      filename: data.path,
+      filename: file.name,
+      file_id: file.$id,
       message: replace ? 'File replaced successfully' : 'File uploaded successfully'
     });
   } catch (error: any) {

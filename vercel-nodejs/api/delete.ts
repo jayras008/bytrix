@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { Client, Storage } from 'node-appwrite';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -26,16 +26,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'filename required' });
     }
 
-    const supabase = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_ANON_KEY!
-    );
+    const client = new Client()
+      .setEndpoint(process.env.APPWRITE_ENDPOINT!)
+      .setProject(process.env.APPWRITE_PROJECT_ID!)
+      .setKey(process.env.APPWRITE_API_KEY!);
 
-    const { error } = await supabase.storage
-      .from(process.env.STORAGE_BUCKET!)
-      .remove([filename]);
+    const storage = new Storage(client);
 
-    if (error) throw error;
+    // Find file by name
+    const files = await storage.listFiles(process.env.APPWRITE_BUCKET_ID!, [
+      `equal("name", "${filename}")`
+    ]);
+
+    if (files.files.length === 0) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    await storage.deleteFile(process.env.APPWRITE_BUCKET_ID!, files.files[0].$id);
 
     return res.status(200).json({
       success: true,

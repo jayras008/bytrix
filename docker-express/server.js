@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { createClient } from '@supabase/supabase-js';
+import { Client, Storage, ID, InputFile } from 'node-appwrite';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -22,12 +22,12 @@ const verifyApiKey = (req, res, next) => {
   next();
 };
 
-// Initialize Supabase client
-const getSupabaseClient = () => {
-  return createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_ANON_KEY
-  );
+// Initialize Appwrite client
+const getAppwriteClient = () => {
+  return new Client()
+    .setEndpoint(process.env.APPWRITE_ENDPOINT)
+    .setProject(process.env.APPWRITE_PROJECT_ID)
+    .setKey(process.env.APPWRITE_API_KEY);
 };
 
 // Health check
@@ -38,23 +38,17 @@ app.get('/health', (req, res) => {
 // List all files
 app.get('/api/list', verifyApiKey, async (req, res) => {
   try {
-    const supabase = getSupabaseClient();
+    const client = getAppwriteClient();
+    const storage = new Storage(client);
     
-    const { data, error } = await supabase.storage
-      .from(process.env.STORAGE_BUCKET)
-      .list('', {
-        limit: 1000,
-        sortBy: { column: 'created_at', order: 'desc' }
-      });
+    const result = await storage.listFiles(process.env.APPWRITE_BUCKET_ID);
 
-    if (error) throw error;
-
-    const files = data.map(file => ({
+    const files = result.files.map(file => ({
       name: file.name,
-      size: file.metadata?.size || 0,
-      type: file.metadata?.mimetype || 'unknown',
-      created_at: file.created_at,
-      updated_at: file.updated_at
+      size: file.sizeOriginal,
+      type: file.mimeType,
+      created_at: file.$createdAt,
+      updated_at: file.$updatedAt
     }));
 
     res.json({ files, total: files.length });
@@ -73,25 +67,36 @@ app.post('/api/upload', verifyApiKey, async (req, res) => {
       return res.status(400).json({ error: 'filename and file_data required' });
     }
 
-    const supabase = getSupabaseClient();
+    const client = getAppwriteClient();
+    const storage = new Storage(client);
 
     // Convert base64 to buffer
     const buffer = Buffer.from(file_data, 'base64');
 
-    const uploadOptions = {
-      contentType: content_type || 'application/octet-stream',
-      upsert: replace === true || replace === 'true'
-    };
+    // If replace, delete existing file first
+    if (replace === true || replace === 'true') {
+      try {
+        const files = await storage.listFiles(process.env.APPWRITE_BUCKET_ID, [
+          `equal("name", "${filename}")`
+        ]);
+        if (files.files.length > 0) {
+          await storage.deleteFile(process.env.APPWRITE_BUCKET_ID, files.files[0].$id);
+        }
+      } catch (err) {
+        // File doesn't exist, ignore error
+      }
+    }
 
-    const { data, error } = await supabase.storage
-      .from(process.env.STORAGE_BUCKET)
-      .upload(filename, buffer, uploadOptions);
-
-    if (error) throw error;
+    const file = await storage.createFile(
+      process.env.APPWRITE_BUCKET_ID,
+      ID.unique(),
+      InputFile.fromBuffer(buffer, filename)
+    );
 
     res.json({
       success: true,
-      filename: data.path,
+      filename: file.name,
+      file_id: file.$id,
       message: replace ? 'File replaced successfully' : 'File uploaded successfully'
     });
   } catch (error) {
@@ -109,13 +114,19 @@ app.delete('/api/delete', verifyApiKey, async (req, res) => {
       return res.status(400).json({ error: 'filename required' });
     }
 
-    const supabase = getSupabaseClient();
+    const client = getAppwriteClient();
+    const storage = new Storage(client);
 
-    const { error } = await supabase.storage
-      .from(process.env.STORAGE_BUCKET)
-      .remove([filename]);
+    // Find file by name
+    const files = await storage.listFiles(process.env.APPWRITE_BUCKET_ID, [
+      `equal("name", "${filename}")`
+    ]);
 
-    if (error) throw error;
+    if (files.files.length === 0) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    await storage.deleteFile(process.env.APPWRITE_BUCKET_ID, files.files[0].$id);
 
     res.json({
       success: true,
@@ -136,19 +147,29 @@ app.post('/api/signed-url', verifyApiKey, async (req, res) => {
       return res.status(400).json({ error: 'filename required' });
     }
 
-    const supabase = getSupabaseClient();
+    const client = getAppwriteClient();
+    const storage = new Storage(client);
 
-    const { data, error } = await supabase.storage
-      .from(process.env.STORAGE_BUCKET)
-      .createSignedUrl(filename, expires_in);
+    // Find file by name
+    const files = await storage.listFiles(process.env.APPWRITE_BUCKET_ID, [
+      `equal("name", "${filename}")`
+    ]);
 
-    if (error) throw error;
+    if (files.files.length === 0) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    const fileId = files.files[0].$id;
+    
+    // Get file download URL
+    const downloadUrl = storage.getFileDownload(process.env.APPWRITE_BUCKET_ID, fileId);
 
     res.json({
       success: true,
-      signed_url: data.signedUrl,
+      signed_url: downloadUrl,
       expires_in: expires_in,
-      expires_at: new Date(Date.now() + expires_in * 1000).toISOString()
+      expires_at: new Date(Date.now() + expires_in * 1000).toISOString(),
+      note: 'Appwrite file URLs are permanent. Use bucket permissions to control access.'
     });
   } catch (error) {
     console.error('Signed URL error:', error);
@@ -163,5 +184,5 @@ app.use((req, res) => {
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 File Manager running on port ${PORT}`);
-  console.log(`📦 Storage bucket: ${process.env.STORAGE_BUCKET}`);
+  console.log(`📦 Storage bucket: ${process.env.APPWRITE_BUCKET_ID}`);
 });

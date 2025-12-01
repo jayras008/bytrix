@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { Client, Storage } from 'node-appwrite';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -22,26 +22,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const supabase = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_ANON_KEY!
-    );
+    const client = new Client()
+      .setEndpoint(process.env.APPWRITE_ENDPOINT!)
+      .setProject(process.env.APPWRITE_PROJECT_ID!)
+      .setKey(process.env.APPWRITE_API_KEY!);
 
-    const { data, error } = await supabase.storage
-      .from(process.env.STORAGE_BUCKET!)
-      .list('', {
-        limit: 1000,
-        sortBy: { column: 'created_at', order: 'desc' }
-      });
+    const storage = new Storage(client);
 
-    if (error) throw error;
+    const result = await storage.listFiles(process.env.APPWRITE_BUCKET_ID!);
 
-    const files = data.map(file => ({
+    const files = result.files.map((file: any) => ({
       name: file.name,
-      size: file.metadata?.size || 0,
-      type: file.metadata?.mimetype || 'unknown',
-      created_at: file.created_at,
-      updated_at: file.updated_at
+      size: file.sizeOriginal,
+      type: file.mimeType,
+      created_at: file.$createdAt,
+      updated_at: file.$updatedAt
     }));
 
     return res.status(200).json({ files, total: files.length });

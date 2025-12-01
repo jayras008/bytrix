@@ -2,9 +2,9 @@ openapi: 3.1.0
 info:
   title: File Manager Pribadi Universal
   description: |
-    API proxy untuk mengelola file pribadi dengan Supabase Storage.
+    API proxy untuk mengelola file pribadi dengan Appwrite Storage.
     
-    **KEAMANAN**: Anon key Supabase tersimpan aman di server, tidak pernah terekspos ke OpenAI.
+    **KEAMANAN**: Appwrite API key tersimpan aman di server, tidak pernah terekspos ke OpenAI.
     
     **CARA PAKAI**:
     1. Deploy salah satu varian (Vercel/Railway/Docker/dll)
@@ -247,7 +247,7 @@ components:
       description: |
         API Key custom Anda (set di environment variable API_KEY saat deploy).
         
-        **PENTING**: Ini BUKAN anon key Supabase. Ini adalah key yang Anda tentukan sendiri untuk mengamankan proxy server.
+        **PENTING**: Ini BUKAN API key Appwrite. Ini adalah key yang Anda tentukan sendiri untuk mengamankan proxy server.
 
   schemas:
     Error:

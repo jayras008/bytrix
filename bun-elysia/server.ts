@@ -1,13 +1,15 @@
 import { Elysia } from 'elysia';
-import { createClient } from '@supabase/supabase-js';
+import { Client, Storage, ID, InputFile } from 'node-appwrite';
 
 const PORT = process.env.PORT || 3000;
 
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_ANON_KEY!
-);
+// Initialize Appwrite client
+const getAppwriteClient = () => {
+  return new Client()
+    .setEndpoint(process.env.APPWRITE_ENDPOINT!)
+    .setProject(process.env.APPWRITE_PROJECT_ID!)
+    .setKey(process.env.APPWRITE_API_KEY!);
+};
 
 const app = new Elysia()
   // CORS middleware
@@ -41,21 +43,17 @@ const app = new Elysia()
   // List all files
   .get('/api/list', async ({ set }) => {
     try {
-      const { data, error } = await supabase.storage
-        .from(process.env.STORAGE_BUCKET!)
-        .list('', {
-          limit: 1000,
-          sortBy: { column: 'created_at', order: 'desc' }
-        });
+      const client = getAppwriteClient();
+      const storage = new Storage(client);
 
-      if (error) throw error;
+      const result = await storage.listFiles(process.env.APPWRITE_BUCKET_ID!);
 
-      const files = data.map(file => ({
+      const files = result.files.map((file: any) => ({
         name: file.name,
-        size: file.metadata?.size || 0,
-        type: file.metadata?.mimetype || 'unknown',
-        created_at: file.created_at,
-        updated_at: file.updated_at
+        size: file.sizeOriginal,
+        type: file.mimeType,
+        created_at: file.$createdAt,
+        updated_at: file.$updatedAt
       }));
 
       return { files, total: files.length };
@@ -75,27 +73,40 @@ const app = new Elysia()
         return { error: 'filename and file_data required' };
       }
 
-      // Convert base64 to ArrayBuffer
+      const client = getAppwriteClient();
+      const storage = new Storage(client);
+
+      // Convert base64 to buffer
       const binaryString = atob(file_data);
       const bytes = new Uint8Array(binaryString.length);
       for (let i = 0; i < binaryString.length; i++) {
         bytes[i] = binaryString.charCodeAt(i);
       }
 
-      const uploadOptions = {
-        contentType: content_type || 'application/octet-stream',
-        upsert: replace === true || replace === 'true'
-      };
+      // If replace, delete existing file first
+      if (replace === true || replace === 'true') {
+        try {
+          const files = await storage.listFiles(process.env.APPWRITE_BUCKET_ID!, [
+            `equal("name", "${filename}")`
+          ]);
+          if (files.files.length > 0) {
+            await storage.deleteFile(process.env.APPWRITE_BUCKET_ID!, files.files[0].$id);
+          }
+        } catch (err) {
+          // File doesn't exist, ignore error
+        }
+      }
 
-      const { data, error } = await supabase.storage
-        .from(process.env.STORAGE_BUCKET!)
-        .upload(filename, bytes, uploadOptions);
-
-      if (error) throw error;
+      const file = await storage.createFile(
+        process.env.APPWRITE_BUCKET_ID!,
+        ID.unique(),
+        InputFile.fromBuffer(bytes, filename)
+      );
 
       return {
         success: true,
-        filename: data.path,
+        filename: file.name,
+        file_id: file.$id,
         message: replace ? 'File replaced successfully' : 'File uploaded successfully'
       };
     } catch (error: any) {
@@ -114,11 +125,20 @@ const app = new Elysia()
         return { error: 'filename required' };
       }
 
-      const { error } = await supabase.storage
-        .from(process.env.STORAGE_BUCKET!)
-        .remove([filename]);
+      const client = getAppwriteClient();
+      const storage = new Storage(client);
 
-      if (error) throw error;
+      // Find file by name
+      const files = await storage.listFiles(process.env.APPWRITE_BUCKET_ID!, [
+        `equal("name", "${filename}")`
+      ]);
+
+      if (files.files.length === 0) {
+        set.status = 404;
+        return { error: 'File not found' };
+      }
+
+      await storage.deleteFile(process.env.APPWRITE_BUCKET_ID!, files.files[0].$id);
 
       return {
         success: true,
@@ -140,17 +160,30 @@ const app = new Elysia()
         return { error: 'filename required' };
       }
 
-      const { data, error } = await supabase.storage
-        .from(process.env.STORAGE_BUCKET!)
-        .createSignedUrl(filename, expires_in);
+      const client = getAppwriteClient();
+      const storage = new Storage(client);
 
-      if (error) throw error;
+      // Find file by name
+      const files = await storage.listFiles(process.env.APPWRITE_BUCKET_ID!, [
+        `equal("name", "${filename}")`
+      ]);
+
+      if (files.files.length === 0) {
+        set.status = 404;
+        return { error: 'File not found' };
+      }
+
+      const fileId = files.files[0].$id;
+      
+      // Get file download URL
+      const downloadUrl = storage.getFileDownload(process.env.APPWRITE_BUCKET_ID!, fileId);
 
       return {
         success: true,
-        signed_url: data.signedUrl,
+        signed_url: downloadUrl,
         expires_in: expires_in,
-        expires_at: new Date(Date.now() + expires_in * 1000).toISOString()
+        expires_at: new Date(Date.now() + expires_in * 1000).toISOString(),
+        note: 'Appwrite file URLs are permanent. Use bucket permissions to control access.'
       };
     } catch (error: any) {
       set.status = 500;
@@ -161,4 +194,4 @@ const app = new Elysia()
   .listen(PORT);
 
 console.log(`🚀 File Manager running on port ${app.server?.port}`);
-console.log(`📦 Storage bucket: ${process.env.STORAGE_BUCKET}`);
+console.log(`📦 Storage bucket: ${process.env.APPWRITE_BUCKET_ID}`);

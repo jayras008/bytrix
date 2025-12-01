@@ -13,9 +13,10 @@
     }
   ],
   "env": {
-    "SUPABASE_URL": "@supabase-url",
-    "SUPABASE_ANON_KEY": "@supabase-anon-key",
-    "STORAGE_BUCKET": "private-files",
+    "APPWRITE_ENDPOINT": "@appwrite-endpoint",
+    "APPWRITE_PROJECT_ID": "@appwrite-project-id",
+    "APPWRITE_API_KEY": "@appwrite-api-key",
+    "APPWRITE_BUCKET_ID": "private-files",
     "API_KEY": "@api-key"
   }
 }

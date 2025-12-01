@@ -1,6 +1,6 @@
 # 📁 File Manager Pribadi Universal
 
-File manager pribadi yang 100% aman dan bisa di-deploy di mana saja dengan proxy server sendiri.
+File manager pribadi yang 100% aman dan bisa di-deploy di mana saja dengan Appwrite Storage.
 
 ## 🎯 Fitur
 
@@ -12,23 +12,26 @@ File manager pribadi yang 100% aman dan bisa di-deploy di mana saja dengan proxy
 
 ## 🔐 Keamanan
 
-- ✅ Anon key Supabase **HANYA** ada di server (tidak pernah ke OpenAI)
+- ✅ Appwrite API key **HANYA** ada di server (tidak pernah ke OpenAI)
 - ✅ API key custom untuk autentikasi proxy server
 - ✅ Storage bucket private (tidak bisa diakses langsung)
-- ✅ Signed URL sementara untuk download aman
+- ✅ File permissions per-file (optional)
 
 ---
 
 ## 🚀 DEPLOY 60 DETIK
 
-### Persiapan Supabase (Wajib - 2 menit)
+### Persiapan Appwrite (Wajib - 5 menit)
 
-1. Buat project di [Supabase](https://supabase.com)
-2. Buka **Storage** → Create bucket `private-files` (centang **Private**)
-3. Buka **SQL Editor** → Paste & run isi file `supabase-storage-policy.sql`
-4. Simpan credentials:
-   - `SUPABASE_URL`: https://xxxxx.supabase.co
-   - `SUPABASE_ANON_KEY`: eyJhbGc... (dari Settings > API)
+1. Buat project di [Appwrite Cloud](https://cloud.appwrite.io) (gratis)
+2. Buat API Key dengan scope `files.read` & `files.write`
+3. Buat bucket `private-files` (set sebagai **Private**)
+4. Lihat detail setup di `appwrite-setup.md`
+5. Simpan credentials:
+   - `APPWRITE_ENDPOINT`: https://cloud.appwrite.io/v1
+   - `APPWRITE_PROJECT_ID`: your-project-id
+   - `APPWRITE_API_KEY`: your-api-key
+   - `APPWRITE_BUCKET_ID`: private-files
 
 ---
 
@@ -41,11 +44,12 @@ npm i -g vercel
 # Masuk folder vercel-nodejs
 cd vercel-nodejs
 
-# Deploy
-vercel
-
 # Set environment variables (saat ditanya)
-# SUPABASE_URL=https://xxxxx.supabase.co
+# APPWRITE_ENDPOINT=https://cloud.appwrite.io/v1
+# APPWRITE_PROJECT_ID=your-project-id
+# APPWRITE_API_KEY=your-api-key
+# APPWRITE_BUCKET_ID=private-files
+# API_KEY=rahasia-saya-123xx.supabase.co
 # SUPABASE_ANON_KEY=eyJhbGc...
 # STORAGE_BUCKET=private-files
 # API_KEY=rahasia-saya-123
@@ -72,8 +76,8 @@ railway login
 
 # Masuk folder docker-express
 cd docker-express
-
-# Deploy
+# Set environment variables di Railway Dashboard
+# APPWRITE_ENDPOINT, APPWRITE_PROJECT_ID, APPWRITE_API_KEY, APPWRITE_BUCKET_ID, API_KEY, PORT=3000
 railway up
 
 # Set environment variables di Railway Dashboard
@@ -99,14 +103,15 @@ railway up
    - **Name**: file-manager
    - **Root Directory**: `docker-express`
    - **Runtime**: Docker
-   - **Plan**: Free
 4. **Environment Variables:**
    ```
-   SUPABASE_URL=https://xxxxx.supabase.co
-   SUPABASE_ANON_KEY=eyJhbGc...
-   STORAGE_BUCKET=private-files
+   APPWRITE_ENDPOINT=https://cloud.appwrite.io/v1
+   APPWRITE_PROJECT_ID=your-project-id
+   APPWRITE_API_KEY=your-api-key
+   APPWRITE_BUCKET_ID=private-files
    API_KEY=rahasia-saya-123
    PORT=3000
+   ```T=3000
    ```
 5. Create Web Service → Tunggu build selesai
 6. Selesai! URL: https://your-project.onrender.com
@@ -133,9 +138,10 @@ fly launch
 # - No PostgreSQL, No Redis
 
 # Set secrets
-fly secrets set SUPABASE_URL="https://xxxxx.supabase.co"
-fly secrets set SUPABASE_ANON_KEY="eyJhbGc..."
-fly secrets set STORAGE_BUCKET="private-files"
+fly secrets set APPWRITE_ENDPOINT="https://cloud.appwrite.io/v1"
+fly secrets set APPWRITE_PROJECT_ID="your-project-id"
+fly secrets set APPWRITE_API_KEY="your-api-key"
+fly secrets set APPWRITE_BUCKET_ID="private-files"
 fly secrets set API_KEY="rahasia-saya-123"
 
 # Deploy
@@ -358,7 +364,7 @@ file-manager-pribadi/
 │   └── .env.example
 │
 ├── file-manager-proxy.yaml     # OpenAPI schema
-├── supabase-storage-policy.sql # SQL policy
+├── appwrite-setup.md           # Appwrite setup guide
 └── README.md                   # Dokumentasi ini
 ```
 
@@ -368,9 +374,10 @@ file-manager-pribadi/
 
 ### Wajib (Semua Varian)
 ```env
-SUPABASE_URL=https://xxxxx.supabase.co
-SUPABASE_ANON_KEY=eyJhbGc...
-STORAGE_BUCKET=private-files
+APPWRITE_ENDPOINT=https://cloud.appwrite.io/v1
+APPWRITE_PROJECT_ID=your-project-id
+APPWRITE_API_KEY=your-api-key
+APPWRITE_BUCKET_ID=private-files
 API_KEY=your-secret-api-key-123
 ```
 
@@ -394,11 +401,11 @@ railway up     # Railway
 fly deploy     # Fly.io
 docker build -t file-manager . && docker run -p 3000:3000 file-manager  # Docker
 ```
-
 ### Backup File
-Supabase sudah auto-backup, atau bisa:
+Appwrite sudah auto-backup (jika pakai Cloud), atau bisa:
 1. Download semua file via GPT: "Download semua file"
-2. Export dari Supabase Storage dashboard
+2. Export dari Appwrite Storage dashboard
+3. Self-hosted: Backup volume Docker
 3. Gunakan Supabase CLI: `supabase db dump`
 
 ---
@@ -414,13 +421,13 @@ Supabase sudah auto-backup, atau bisa:
 7. **Signed URL**: Gunakan expires_in lebih pendek untuk file sensitif
 
 ---
-
 ## 🆘 Support
 
-- 📖 Dokumentasi Supabase: https://supabase.com/docs/guides/storage
+- 📖 Dokumentasi Appwrite: https://appwrite.io/docs/products/storage
 - 📖 Vercel Docs: https://vercel.com/docs
 - 📖 Railway Docs: https://docs.railway.app
 - 📖 Fly.io Docs: https://fly.io/docs
+- 📖 Bun Docs: https://bun.sh/docsocs
 - 📖 Bun Docs: https://bun.sh/docs
 
 ---
@@ -430,13 +437,13 @@ Supabase sudah auto-backup, atau bisa:
 MIT License - Bebas digunakan untuk keperluan pribadi maupun komersial.
 
 ---
-
 ## ✨ Dibuat dengan
 
 - 🧠 Claude Sonnet 4.5 (GitHub Copilot)
-- ☁️ Supabase Storage
+- ☁️ Appwrite Storage
 - ⚡ Node.js / Bun
 - 🚀 Vercel / Railway / Render / Fly.io
+- 🐳 Docker / Railway / Render / Fly.io
 - 🐳 Docker
 
 **Selamat mengelola file pribadi Anda dengan aman! 🎉**

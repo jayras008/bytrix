@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "elysia": "^0.8.0",
-    "@supabase/supabase-js": "^2.39.0"
+    "node-appwrite": "^12.0.0"
   },
   "devDependencies": {
     "bun-types": "latest"
