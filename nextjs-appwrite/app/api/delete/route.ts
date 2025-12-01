@@ -25,16 +25,16 @@ export async function DELETE(request: NextRequest) {
 
     const storage = new Storage(client);
 
-    // Find file by name
-    const files = await storage.listFiles(process.env.APPWRITE_BUCKET_ID!, [
-      `equal("name", "${filename}")`
-    ]);
-
-    if (files.files.length === 0) {
+    // Find file by name (search all files and filter)
+    const files = await storage.listFiles(process.env.APPWRITE_BUCKET_ID!);
+    
+    const matchedFile = files.files.find(file => file.name === filename);
+    
+    if (!matchedFile) {
       return NextResponse.json({ error: 'File not found' }, { status: 404 });
     }
 
-    await storage.deleteFile(process.env.APPWRITE_BUCKET_ID!, files.files[0].$id);
+    await storage.deleteFile(process.env.APPWRITE_BUCKET_ID!, matchedFile.$id);
 
     return NextResponse.json({
       success: true,
