@@ -41,27 +41,31 @@ File manager pribadi yang 100% aman dan bisa di-deploy di mana saja dengan Appwr
 # Install Vercel CLI
 npm i -g vercel
 
-# Masuk folder vercel-nodejs
-cd vercel-nodejs
+# Masuk folder nextjs-appwrite
+cd nextjs-appwrite
+
+# Install dependencies
+npm install
+
+# Deploy
+vercel
 
 # Set environment variables (saat ditanya)
 # APPWRITE_ENDPOINT=https://cloud.appwrite.io/v1
 # APPWRITE_PROJECT_ID=your-project-id
 # APPWRITE_API_KEY=your-api-key
 # APPWRITE_BUCKET_ID=private-files
-# API_KEY=rahasia-saya-123xx.supabase.co
-# SUPABASE_ANON_KEY=eyJhbGc...
-# STORAGE_BUCKET=private-files
 # API_KEY=rahasia-saya-123
 
 # Selesai! URL: https://your-project.vercel.app
 ```
 
 **Alternatif via Dashboard:**
-1. Push folder `vercel-nodejs` ke GitHub
+1. Push folder `nextjs-appwrite` ke GitHub
 2. Import di [Vercel Dashboard](https://vercel.com/new)
-3. Set environment variables di Settings
-4. Deploy!
+3. **Framework Preset**: Next.js
+4. Set environment variables di Settings
+5. Deploy!
 
 ---
 
@@ -341,14 +345,18 @@ Hapus file "temp.log" dan tampilkan sisa file yang ada
 
 ```
 file-manager-pribadi/
-├── vercel-nodejs/          # ⚡ Vercel Serverless
-│   ├── api/
-│   │   ├── list.ts
-│   │   ├── upload.ts
-│   │   ├── delete.ts
-│   │   └── signed-url.ts
+├── nextjs-appwrite/            # ⚡ Next.js 14 App Router
+│   ├── app/
+│   │   ├── api/
+│   │   │   ├── list/route.ts
+│   │   │   ├── upload/route.ts
+│   │   │   ├── delete/route.ts
+│   │   │   └── signed-url/route.ts
+│   │   ├── layout.tsx
+│   │   └── page.tsx
 │   ├── package.json
-│   ├── vercel.json
+│   ├── next.config.js
+│   ├── tsconfig.json
 │   └── .env.example
 │
 ├── docker-express/         # 🐳 Docker + Express

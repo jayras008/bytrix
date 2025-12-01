@@ -1,38 +1,19 @@
 import { Client, Storage, ID, InputFile } from 'node-appwrite';
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { NextRequest, NextResponse } from 'next/server';
 
-// Support file upload up to 100MB
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '100mb',
-    },
-  },
-};
-
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-key');
-  
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  const apiKey = req.headers['x-api-key'];
+export async function POST(request: NextRequest) {
+  // Verify API Key
+  const apiKey = request.headers.get('x-api-key');
   if (apiKey !== process.env.API_KEY) {
-    return res.status(401).json({ error: 'Unauthorized' });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
-    const { filename, file_data, content_type, replace = false } = req.body;
+    const body = await request.json();
+    const { filename, file_data, content_type, replace = false } = body;
 
     if (!filename || !file_data) {
-      return res.status(400).json({ error: 'filename and file_data required' });
+      return NextResponse.json({ error: 'filename and file_data required' }, { status: 400 });
     }
 
     const client = new Client()
@@ -65,7 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       InputFile.fromBuffer(buffer, filename)
     );
 
-    return res.status(200).json({
+    return NextResponse.json({
       success: true,
       filename: file.name,
       file_id: file.$id,
@@ -73,6 +54,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   } catch (error: any) {
     console.error('Upload error:', error);
-    return res.status(500).json({ error: error.message });
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '100mb',
+    },
+  },
+};

@@ -1,29 +1,19 @@
 import { Client, Storage } from 'node-appwrite';
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { NextRequest, NextResponse } from 'next/server';
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-key');
-  
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  const apiKey = req.headers['x-api-key'];
+export async function POST(request: NextRequest) {
+  // Verify API Key
+  const apiKey = request.headers.get('x-api-key');
   if (apiKey !== process.env.API_KEY) {
-    return res.status(401).json({ error: 'Unauthorized' });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
-    const { filename, expires_in = 604800 } = req.body; // Default 7 days (604800 seconds)
+    const body = await request.json();
+    const { filename, expires_in = 604800 } = body; // Default 7 days
 
     if (!filename) {
-      return res.status(400).json({ error: 'filename required' });
+      return NextResponse.json({ error: 'filename required' }, { status: 400 });
     }
 
     const client = new Client()
@@ -39,7 +29,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ]);
 
     if (files.files.length === 0) {
-      return res.status(404).json({ error: 'File not found' });
+      return NextResponse.json({ error: 'File not found' }, { status: 404 });
     }
 
     const fileId = files.files[0].$id;
@@ -47,7 +37,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Get file download URL
     const downloadUrl = storage.getFileDownload(process.env.APPWRITE_BUCKET_ID!, fileId);
 
-    return res.status(200).json({
+    return NextResponse.json({
       success: true,
       signed_url: downloadUrl,
       expires_in: expires_in,
@@ -56,6 +46,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   } catch (error: any) {
     console.error('Signed URL error:', error);
-    return res.status(500).json({ error: error.message });
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
